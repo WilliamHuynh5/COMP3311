@@ -1,0 +1,69 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q6: discography for one group, given by Groups.id
+
+import sys
+import psycopg2
+# ... put helper functions here ...
+
+def fpt(slen):
+    minu = slen // 60
+    secd = slen % 60
+    ret = str(minu)
+    ret += ":"
+    if secd < 10:
+        ret += "0"
+    ret += str(secd)
+    return ret
+
+db = None
+cur = None
+usage = f"Usage: {sys.argv[0]} GroupID"
+
+# process command-line args
+
+if len(sys.argv) < 2:
+    print(usage)
+    exit(1)
+groupID = sys.argv[1]
+if not groupID.isnumeric():
+    print(usage)
+    exit(1)
+
+try:
+    db = psycopg2.connect("dbname=music")
+    cur = db.cursor()
+    cur.execute("select count(*) from groups where id = %s", [groupID])
+    ret = cur.fetchall()
+    if ret[0][0] == 0:
+        print("Invalid group ID");
+        exit(1)
+    cur.execute("select name from groups where id = %s", [groupID])
+    ret = cur.fetchall()
+    name = ret[0][0]
+    print("Discography for " + name)
+    query = '''
+        select a.id, a.title, a.year, a.genre, s.title, s.length, s.trackno
+        from albums as a left outer join songs as s on (s.on_album = a.id)
+        where a.made_by = %s 
+        order by a.year, a.title, a.id, s.trackno
+    '''
+    cur.execute(query, [groupID])
+    ret = cur.fetchall()
+    for i in range(0, len(ret)):
+        aid, atitle, ayear, agen, stitle, slen,trackno = ret[i][0], ret[i][1], ret[i][2], ret[i][3], ret[i][4], ret[i][5], ret[i][6]
+        if i == 0 or ret[i][0] != ret[i-1][0]:
+            print("--------------------")
+            print(atitle + " (" + str(ayear) + ") (" + agen + ")")
+            print("--------------------")
+        if stitle != None and slen != None:
+            print("%2d" %(trackno) + ". " + stitle + " (" + fpt(slen) + ")")
+             
+except psycopg2.Error as err:
+    print("DB error: ", err)
+finally:
+    if cur:
+        cur.close()
+    if db:
+        db.close()
+

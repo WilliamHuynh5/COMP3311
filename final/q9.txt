@@ -1,0 +1,127 @@
+# COMP3311 20T3 Final Exam Q9
+
+(a)
+
+create or replace function q9_a() returns trigger as
+$$
+declare
+    cnt integer;
+    dt date;
+begin
+	-- after this update happens, count the number of people in the same group without the departed date
+	select count(distinct performer) into cnt
+	from Memberof
+	where new.in_group = in_group and departed is null;
+	if cnt <> 0 then
+		update groups
+		set disbanded = null
+		where id = new.in_group;
+	else
+		select max(departed) into dt from memberof where new.in_group = in_group;
+		update groups
+		set disbanded = dt
+		where id = new.in_group;
+	end if;
+	return new;
+end;
+$$ language plpgsql;
+
+create trigger q9_a after update of departed on MemberOf for each row execute procedure q9_a();
+
+(b)
+
+create or replace function q9_b1() returns trigger as
+$$
+declare
+	curr_day date;
+	nid integer;
+	curr record;
+begin
+	select current_date into curr_day;
+	
+	-- assume next_group_id return an integer which is the not in the group id
+	select next_group_id() into nid; 
+	
+	
+	-- insert a new entry into the group with new id
+	insert into groups values (nid, new.name, curr_day, null);
+	
+	-- create new tuples in the memberof table for all members in the old group
+	-- only move the "active" members to the new group
+	for curr in (select * from memberof where in_group = new.id and departed is null) loop
+		insert into memberof values(nid, curr.performer, curr_day, null);
+	end loop;
+	
+	-- without modified the name of the origional tuple just the date
+	new.name := old.name;
+	new.disbanded := curr_day;
+	return new; 
+end;
+$$ language plpgsql;
+
+create or replace function q9_b2() returns trigger as
+$$
+declare
+	curr_day date;
+	nid integer;
+	curr record;
+begin
+	select current_date into curr_day;
+	
+	-- fix the memberof table: set all the null departed value in the old group to curr_day  
+	update memberof
+	set departed = curr_day
+	where departed is null and new.id = in_group;
+	
+	return new; 
+end;
+$$ language plpgsql;
+
+
+
+create trigger q9_b1 before update of name on groups for each row execute procedure q9_b1();
+
+create trigger q9_b2 after update of name on groups for each row execute procedure q9_b2();
+
+
+
+##############Note that the above code can be run, load the below items into the database####################
+create table Groups (
+	id          integer,
+	name        text not null,
+	formed      date not null, -- when the group formed
+	disbanded   date, -- when they split up (null if still together)
+	primary key (id)
+);
+
+create table MemberOf (
+	in_group    integer,
+	performer   integer,
+	joined date not null,
+	departed date,
+	primary key (in_group,performer),
+	foreign key (in_group) references Groups(id)
+);
+
+insert into groups values (1, 'group 1.1', '2020-09-01', null);
+insert into groups values (2, 'group 2.1', '2020-09-02', null);
+insert into memberof values (1, 1, '2020-09-03', null);
+insert into memberof values (1, 2, '2020-09-04', null);
+insert into memberof values (2, 5, '2020-09-07', null);
+insert into memberof values (2, 3, '2020-09-05', null);
+insert into memberof values (2, 4, '2020-09-03', '2020-09-04');
+
+create or replace function next_group_id() returns integer as
+$$
+declare
+	ret integer;
+begin
+	select max(id) into ret from groups;
+	if ret is null then
+	   ret := 1;
+	else
+	   ret := ret + 1;
+    end if;
+    return ret;
+end;
+$$ language plpgsql;

@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q7: tracklist for album, given by Albums.id
+#     show performers/instruments for each track
+
+import sys
+import psycopg2
+
+# ... put helper functions here ...
+
+db = None
+cur = None
+usage = f"Usage: {sys.argv[0]} AlbumID"
+
+# process command-line args
+
+if len(sys.argv) < 2:
+    print(usage)
+    exit(1)
+albumID = sys.argv[1]
+if not albumID.isnumeric():
+    print(usage)
+    exit(1)
+
+try:
+    db = psycopg2.connect("dbname=music")
+    cur = db.cursor()
+    cur.execute("select count(*) from albums where id = %s", [albumID])
+    ret = cur.fetchall()
+    if ret[0][0] == 0:
+        print("Invalid album ID")
+        exit(1)
+    cur.execute("select title, year, genre from albums where id = %s", [albumID])
+    ret = cur.fetchall()
+    name, year, genre = ret[0][0], ret[0][1], ret[0][2]
+    print(name + " (" + str(year) + ") (" + genre + ")")
+    print("========================================")
+    query = '''
+        select s.id, s.trackno, s.title, p.id, p.name
+        from songs as s left outer join playson as po on (s.id = po.song)
+             left outer join performers as p on p.id = po.performer
+        where s.on_album = %s
+        group by s.id, p.id
+        order by s.trackno, s.id, p.name, p.id
+    '''
+    cur.execute(query, [albumID])
+    ret = cur.fetchall()
+    for i in range(0, len(ret)):
+        if i == 0 or ret[i][0] != ret[i-1][0]:
+            print("%2d"%(ret[i][1]) + ". " + ret[i][2])
+        if ret[i][3] != None:
+            cur.execute("select instrument from playson where performer = %s and song = %s order by instrument", [ret[i][3], ret[i][0]])
+            re = cur.fetchall()
+            st = ""
+            for j in range(0, len(re)):
+                if j == 0:
+                    st += re[j][0]
+                else:
+                    st += ","
+                    st += re[j][0]
+                    
+            print("        " + ret[i][4] + ": " + st) 
+        else:
+            print("        The whole group")
+except psycopg2.Error as err:
+    print("DB error: ", err)
+finally:
+    if cur:
+        cur.close()
+    if db:
+        db.close()
+

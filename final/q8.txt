@@ -1,0 +1,55 @@
+# COMP3311 20T3 Final Exam Q8
+
+(a)
+create table U (
+    id serial primary key,
+    a integer not null,
+    b text not null
+);
+
+create table M (
+    u_id integer,
+    m text,
+    primary key(u_id, m),
+    foreign key(u_id) references U(id)
+);
+
+(b)
+
+create table T (
+	id serial primary key,
+	c text not null
+);
+
+create table S (
+	id serial primary key,
+	r integer not null unique references T(id)     
+);
+
+(c)
+create table P (
+   id serial primary key,
+   e text not null
+);
+
+create table Q1 (
+   id serial primary key,
+   f integer not null,
+   foreign key (id) references P(id)
+);
+
+create table Q2 (
+	id serial primary key,
+	foreign key (id) references P(id)
+);
+
+create table Q3 (
+	id serial primary key,
+	g integer not null,
+	foreign key (id) references P(id)
+);
+
+Note that in the ER-mapping neither the disjoint (a p-type tuple might have associated tuples from multiple subclass)
+nor the total participation (a P type tuple without an associated Q) can be checked with standard constraints, triggers works though.
+
+

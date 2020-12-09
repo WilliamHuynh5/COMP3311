@@ -1,0 +1,25 @@
+# COMP3311 20T3 Final Exam Q11
+
+(a)
+Res = Sel[true](R)
+
+
+(b)
+t1 = Sel[c < 0](R)
+Res = Proj[a, b](t1)
+
+
+(c)
+t1 = Sel[c < 0](R)
+t2 = S
+t3 = t1 Join[t1.b = t2.e] t2
+Res = Proj[a, d](t3)
+
+
+(d)
+t1 = R Join T
+t2 = t1 Join S
+Res(b, c, e, f) = Proj[b, c, e, f](t2)
+ 
+
+

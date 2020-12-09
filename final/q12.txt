@@ -1,0 +1,32 @@
+# COMP3311 20T3 Final Exam Q12
+
+(a) No.
+consider the conflict operations.
+Firstly R(Y) is before W(Y) which means T2 -> T1.
+Secondly, for the write operations on X, T1 must happen before T2 and T2 must happen before T3,
+hence T1->T2->T3. 
+Now, we can see that edges in the precedence graph T1->T2 and T2->T1 form a cycle, 
+hence by definition the schedule is not conflict serializable.  
+
+(b)
+Yes.
+consider the following serial schedule T2 -> T1 -> T3.
+
+T2: R(Y) W(X)
+T1:          W(Y) W(X)
+T3:                    W(X)
+
+and the origional schedule.
+T1:           W(Y)     W(X)
+
+T2:  R(Y)                       W(X)
+
+T3:                                      W(X)
+
+Note that for these scheduals T2 is doing the initial read of Y and T1 is doing
+the final write on Y, T3 is doing the final write on X.
+Since there's simply no read operations on X and no read operations after a write operations on Y.
+By definition all the 3 conditions of view serializability is satisfied.
+Hence, the origional schedule is view equivalent to the serial schedule T2, T1, T3.
+
+

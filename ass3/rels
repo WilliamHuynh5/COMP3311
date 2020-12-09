@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about different releases for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: rels 'PartialMovieTitle'"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+if argc < 2:
+    print(usage)
+    exit(1)
+sub = sys.argv[1]
+# manipulate database
+
+try:
+    db = psycopg2.connect("dbname=imdb")
+    cur = db.cursor()
+    cur.execute("select id, title, start_year from Q2_1(%s)", [sub])
+    res = cur.fetchall()
+    if len(res) == 0:
+        print("No movie matching '" + sub + "'")
+    elif len(res) > 1: # the simpliest case
+        print("Movies matching '" + sub + "'")
+        print("===============")
+        for tup in res:
+            print(tup[1] + " (" + str(tup[2]) + ")")
+    else:
+        cur.execute("select local_title, text(region), text(language), extra_info from Q2_2(%s)", [res[0][0]])
+        ret = cur.fetchall()
+        if len(ret) == 0:
+            print(res[0][1] + " (" + str(res[0][2]) + ") has no alternative releases")   
+        else: # case works, several if statements on what we should print
+            print(res[0][1] + " (" + str(res[0][2]) + ") was also released as")
+            res = ret
+            for tup in res:
+                name, region, language, info = tup[0], tup[1], tup[2], tup[3]
+                if region == None and language == None:
+                    if info != None:
+                        print("'" + name + "' (" + info + ")")
+                    else:
+                        print("'" + name + "'")
+                elif region == None and language != None:
+                    print("'" + name + "' (language: " + language + ")")
+                elif region != None and language == None:
+                    print("'" + name + "' (region: " + region + ")")
+                else:
+                    print("'" + name + "' (region: " + region + ", language: " + language + ")")
+except psycopg2.Error as err:
+    print("DB error: ", err)
+finally:
+    if db:
+        db.close()
+

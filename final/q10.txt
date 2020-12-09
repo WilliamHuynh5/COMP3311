@@ -1,0 +1,30 @@
+# COMP3311 20T3 Final Exam Q10
+
+(a)
+for the Flights relation
+fid -> from
+fid -> to
+fid -> distance
+fid -> departs
+fid -> arrives
+fid -> price
+from to -> distance
+
+for the Aircraft relation
+aid -> aname
+aid ->  range
+
+for the Employees relation
+eid -> ename
+eid -> salary
+
+
+(b)
+from to -> distance violates BCNF since (from, to) is not a super key of relation Flights and this fd is non-trival
+hence we must decompose the table into
+Route(from, to, distance) key = (from, to) fds = {from, to -> distance}
+Flights(fid, from, to, departs, arrives, price) key = fid, fds = {fid -> from, to, departs, arrives, price}
+Aircraft(aid, aname, range) key = aid, fds = {aid -> aname, range}
+Certified(employee, aircraft) key = (employee, aircraft) fds = {}
+Employees(eid, ename, salary) key = (eid) fds = {eid -> ename, salary}
+

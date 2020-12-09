@@ -1,0 +1,130 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... get Name's biography/filmography
+
+import sys
+import psycopg2
+from helpers import repint
+from helpers import normal
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: bio 'NamePattern' [Year]"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+# argc is wrong
+if argc < 2:
+    print(usage)
+    exit(1)
+# invalid year
+if argc >= 3 and repint(sys.argv[2]) == False:
+    print(usage)
+    exit(1)
+# manipulate database
+
+def print_name(res):
+    for tup in res:
+        name, birth, dead = tup[1], tup[2], tup[3]
+        if birth == None and dead == None:
+            print(name + " (???)")
+        elif birth == None:
+            print(name + " (-" + str(dead) + ")")
+        elif dead == None:
+            print(name + " (" + str(birth) + "-)")
+        else:
+            print(name + " (" + str(birth) + "-" + str(dead) + ")")
+# merge the play and crew ==> final result
+def merge(play, crew):
+    i, j, sz1, sz2 = 0, 0, len(play), len(crew)
+    ret = []
+    while i < sz1 and j < sz2:
+        tup1 = (play[i][1], play[i][2], play[i][0])
+        tup2 = (crew[j][1], crew[j][2], crew[j][0])
+        if tup1 <= tup2:
+            ret.append(play[i])
+            i += 1
+        else:
+            ret.append(crew[j])
+            j += 1    
+    while i < sz1:
+        ret.append(play[i])
+        i += 1
+    while j < sz2:
+        ret.append(crew[j])
+        j += 1
+    return ret
+try:
+    db = psycopg2.connect("dbname=imdb")
+    cur = db.cursor()
+    p_id = None
+    res = None
+    if argc == 2:
+        sub = sys.argv[1]
+        cur.execute("select id, name, birth_year, death_year from Q4_1(%s)", [sub])
+        res = cur.fetchall()
+        if len(res) == 0:
+            print("No name matching '" + sub + "'")
+        elif len(res) > 1:
+            print("Names matching '" + sub + "'")
+            print("===============")
+            print_name(res)
+        else:
+            p_id = res[0][0]
+    else:
+        sub, year = sys.argv[1], int(sys.argv[2])
+        cur.execute("select id, name, birth_year, death_year from Q4_2(%s, %s)", [sub, year])
+        res = cur.fetchall()
+        if len(res) == 0:
+            print("No name matching '" + sub + "'")
+        elif len(res) > 1:
+            print("Names matching '" + sub + "'")
+            print("===============")
+            print_name(res)
+        else:
+            p_id = res[0][0]
+    if p_id:
+        print("Filmography for ", end='')
+        print_name(res)
+        print("===============")
+        query = '''
+              select mv.id, mv.start_year, mv.title, ac.played, 0
+              from acting_roles as ac, movies as mv, principals as p
+              where mv.id = ac.movie_id and ac.name_id = %s 
+              and p.movie_id = mv.id and p.name_id = ac.name_id
+              order by mv.start_year, mv.title , mv.id, p.ordering, ac.played
+        '''
+        cur.execute(query, [p_id])
+        play = cur.fetchall()
+        query = '''
+              select mv.id, mv.start_year, mv.title, c.role, 1
+              from crew_roles as c, movies as mv, principals as p
+              where mv.id = c.movie_id and c.name_id = %s 
+              and p.movie_id = mv.id and p.name_id = c.name_id
+              order by mv.start_year, mv.title, mv.id, p.ordering, c.role
+        '''
+        cur.execute(query, [p_id])
+        crew = cur.fetchall()
+        # use a method like the merge sort merge function to merge the two results
+        res = merge(play, crew)
+        # print(res)
+        # print(len(res), len(crew), len(play))
+        i, sz = 0, len(res)
+        while i < sz:
+            if i == 0 or res[i-1][0] != res[i][0]:
+                print(res[i][2] + " (" + str(res[i][1]) + ")")
+            if res[i][4] == 0:
+                print(" playing " + res[i][3])
+            else:
+                print(" as " + normal(res[i][3]))
+            i += 1
+except psycopg2.Error as err:
+    print("DB error: ", err)
+finally:
+    if db:
+        db.close()
+
